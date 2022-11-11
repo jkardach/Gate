@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <title>Nacht Gate</title>
+
+    <style media="screen">
+      body {
+        width: auto;
+        background-color: #F8CB2E;
+        color: blue;
+      }
+      .nacht {
+        width: 100%;
+        padding-left: 2px;
+        padding-right: 2px;
+        margin-left: auto;
+        margin-right:auto;
+      }
+      input {
+        width: 90%;
+        background-color: green;
+        color: white;
+        margin: 2px auto 2px auto;
+      }
+      td {
+        padding-left: 1px;
+        padding-right: 1px;
+      }
+      .slideValues {
+        color: black;
+      }
+      hr {
+        width: 25%;
+        margin: 25px auto 25px auto;
+        <!-- align: center;
+        border-style: none none dotted;
+        border-width: 5px;
+        width: 5%; -->
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Nachtsheim Gate Control</h1>
+    <form class="" action="index.html" method="post">
+      <input type="button" id=gateStatus class="nacht" value="Open"><br>
+      <input type="button" id=stopButton class="nacht" value="Stop"><br>
+      <input type="button" id=pOpenButton class="nacht" value="Partial Open"><br>
+      <hr>
+
+      <table>
+        <tr>
+          <td><label>10</label>
+          <td><input type="range" class="times" id="range1" name="openClose" value="15" min="10" max="60" step="1">
+          <td><label>60</label>
+          <td><label>Open/Close(s)</label>
+          <td><label id=openCloseTimeValue class=slideValues>15s</label></td>
+        </tr>
+
+        <tr>
+          <td><label>1</label></td>
+          <td><input type="range" class="times" id="range2" name="pOpen" value="5" min="1" max="25" step="1"></td>
+          <td><label>25</label></td>
+          <td><label>Partial Open(s)</label></td>
+          <td><label id=pOpenTimeValue class=slideValues>5s</label></td>
+        </tr>
+
+        <tr>
+          <td><label> 10</label></td>
+          <td><input type="range" class="times" id="range3" name="rOpen" value="25" min="10" max="120" step="1"></td>
+          <td><label>120</label></td>
+          <td><label>Remain Open(s)</label></td>
+          <td><label id=rOpenTimeValue class=slideValues>25s</label></td>
+        </tr>
+
+        <tr>
+          <td><label> 50</label></td>
+          <td><input type="range" class="times" id="range4" name="pulse" value="100" min="50" max="1000" step="10"></td>
+          <td><label>1000</label></td>
+          <td><label>Pulse(ms): </label></td>
+          <td><label id=pulseTimeValue class=slideValues>100ms</label></td>
+        </tr>
+      </table>
+    </form>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  </body>
+
+  <script type="text/javascript">
+    $(':button').bind('click', function(event, ui) {
+      var value = $(this).val();
+      console.log('gate Status button before change value: ' + value);
+      if(value == 'Closed') {
+        $(this).val('Open');
+      } else if(value == 'Open'){
+        $(this).val('Closed');
+      }
+      // post 'Open', 'Closed', 'Stop' or 'pOpen' to trigger c++ routine
+      //$.post('', { $(this).val } );
+    });
+
+    $('.times').on('input', function(event, ui) {
+      const name = $(this).attr("name");
+      const value = $(this).val();
+
+      // update the label based on name
+      if(name == "pulse") {
+        $("#" + name + "TimeValue").text(value + "ms");
+      } else {
+        $("#" + name + "TimeValue").text(value + "s");
+      }
+
+      // post the value back to c++ routine
+      //$.post('', { name: value});
+    });
+
+  </script>
+</html>
