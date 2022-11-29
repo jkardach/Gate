@@ -21,6 +21,9 @@
         margin-left: auto;
         margin-right: auto;
       }
+      #gateStatus {
+        background-color: blue;
+      }
       input {
         width: 90%;
         background-color: green;
@@ -45,37 +48,39 @@
     </style>
   </head>
   <body>
-    <h1>Nachtsheim Gate Control</h1>
+
+    <h1 style="text-align:center">Nachtsheim Gate Control</h1>
     <form class="" action="index.html" method="post">
-      <input type="button" id=gateStatus class="nacht" value="Open"><br>
-      <input type="button" id=stopButton class="nacht" value="Stop"><br>
+      <input type="button" id=gateStatus class="nacht" value="Gate Closed" disabled><br>
+      <input type="button" id=gateButton class="nacht" value="Open"><br>
+      <input type="button" id=stopButton class="nacht" value="Stop" disabled><br>
       <input type="button" id=pOpenButton class="nacht" value="Partial Open"><br>
       <hr>
       <table>
         <tr>
           <td><label>10</label>
-          <td><input type="range" class="times" id="range1" name="openClose" value="15" min="10" max="60" step="1">
+          <td><input type="range" class="times" id="openClose" name="openClose" value="15" min="10" max="60" step="1">
           <td><label>60</label>
           <td><label>Open/Close(s)</label>
           <td><label id=openCloseTimeValue class=slideValues>15s</label></td>
         </tr>
         <tr>
           <td><label>1</label></td>
-          <td><input type="range" class="times" id="range2" name="pOpen" value="5" min="1" max="25" step="1"></td>
+          <td><input type="range" class="times" id="pOpen" name="pOpen" value="5" min="1" max="25" step="1"></td>
           <td><label>25</label></td>
           <td><label>Partial Open(s)</label></td>
           <td><label id=pOpenTimeValue class=slideValues>5s</label></td>
         </tr>
         <tr>
           <td><label>10</label></td>
-          <td><input type="range" class="times" id="range3" name="rOpen" value="25" min="10" max="120" step="1"></td>
+          <td><input type="range" class="times" id="rOpen" name="rOpen" value="25" min="10" max="120" step="1"></td>
           <td><label>120</label></td>
           <td><label>Remain Open(s)</label></td>
           <td><label id=rOpenTimeValue class=slideValues>25s</label></td>
         </tr>
         <tr>
           <td><label>50</label></td>
-          <td><input type="range" class="times" id="range4" name="pulse" value="100" min="50" max="1000" step="10"></td>
+          <td><input type="range" class="times" id="pulse" name="pulse" value="100" min="50" max="1000" step="10"></td>
           <td><label>1000</label></td>
           <td><label>Pulse(ms): </label></td>
           <td><label id=pulseTimeValue class=slideValues>100ms</label></td>
@@ -86,22 +91,126 @@
   </body>
   <script type="text/javascript">
 
-    function buttonPressed(event) {
-      var value = $(event).val();
-      console.log('gate Status button before change value: ' + value);
-      if(value == 'Closed') {
-        $(event).val('Open');
-      } else if(value == 'Open'){
-        $(event).val('Closed');
-      }
+  // global variables
+    var stopped = false;    // has stop been pressed
+    var next = 0;
+    const gateBusyStatus = ['Gate Opening', 'Gate Closing', 'Gate Remaining Open'];
+
+    // this needs to be performed when stop button detected
+    function stopButtonPressed() {
+      stopped = false;      // disable stopped
+      $('#gateStatus').val('Gate Opened');  // gate still opened
+
+      $('#gateButton').val('Close');        // set open/close button to Closed
+      $('#gateButton').css('background-color', 'green');
+      $('#gateButton').attr('disabled', false);    // disable button
+
+      $('#pOpenButton').val('Partial Open');    // reset pOpen Button
+      $('#pOpenButton').css("background-color", 'green');
+      $('#pOpenButton').attr('disabled', true);    // disable button
+
+      $('#stopButton').attr('disabled', true);    // disable button
+
+      //console.log('Stop pressed, #gateStatus: ' + $('#gateStatus').val());
     }
 
+    // pOpen calls this function when finished to kick off the next step
+    function pOpenNext(state, status, color) {
+      if(stopped) {
+        stopButtonPressed();
+      } else {
+        switch(next) {
+          case 0:
+            pOpen('Opening', 'Gate Opening', 'red');  //
+            break;
+          case 1:
+            //console.log('case 1 ');
+            setTimeout(function() { pOpen('Remaining Open', 'Gate Remaining Open', 'red'); }, $('#pOpen').val() + '000');
+            break;
+          case 2:
+            //console.log('case 2 ');
+            setTimeout(function() { pOpen('Closing', 'Gate Closing', 'red'); }, $('#rOpen').val() + '000');
+            break;
+          case 3:
+            //console.log('case 3 ');
+            setTimeout(function() { pOpen('Partial Open', 'Gate Closed', 'green'); }, $('#pOpen').val() + '000');
+            break;
+          default:
+            //$('#gateButton').disabled = false; // re-enable the open/close button while in use
+            $('#gateButton').attr('disabled', false);    // disable button
+            //console.log('default case');
+        }
+      }
+    }
+    // pOpen is the timer callback function and sets buttons for partial open/close function
+    function pOpen(state, status, color) {
+      $('#pOpenButton').val(state);
+      $('#pOpenButton').css("background-color", color);
+      $('#gateStatus').val(status);
+      next++;
+      pOpenNext(state, status, color);
+    }
+
+    // this is the generic open/close timer callback function
+    function gateOpenClose(state, status) {
+      $('#gateButton').attr('disabled', false);    // disable button
+      if(status == 'Gate Closed') {
+        $('#pOpenButton').attr('disabled', false);    // disable button
+      }
+      $('#gateButton').css("background-color", "green");
+      if(stopped) {
+        stopButtonPressed();
+      } else {
+        $('#gateStatus').val(status);
+        $('#gateButton').val(state);
+      }
+      $('#stopButton').attr('disabled', true);    // disable button
+    }
+
+    // top level function for open/close buttons
+    function buttonPressed(state, nextState, status) {
+      $('#gateButton').attr('disabled', true);
+      $('#pOpenButton').attr('disabled', true);
+      $('#stopButton').attr('disabled', false);
+
+      $("#gateStatus").val('Gate ' + state);  // update status label
+      $('#gateButton').val(state);      // update open/close button label
+      $('#gateButton').css("background-color", "red");  // turn button red
+
+      setTimeout(function() { gateOpenClose(nextState, status); }, $('#openClose').val() + '000');
+    }
+
+    // event for the stop, open/close and pOpen buttons *** Starts here
     $(':button').bind('click', function(event, ui) {
-      buttonPressed($(this));
+      var butName = $(this).val();  // get the button name (Open, Close, Stop, pOpen)
+      var gateStatus = $("#gateStatus").val();  // get button status
+
+      // console.log('button click: ' + butName);
+      // console.log('#gateStatus: ' + gateStatus);
+
+      // need to check for 'Stop' first thing
+      if(butName == 'Stop') {
+        if(gateBusyStatus.includes(gateStatus)) {
+          stopped = true;  // set 'stopped' to catch any call backs in progress
+        } else {
+          stopButtonPressed();  // can immediately stop
+        }
+      } else if(butName == 'Open') {
+        buttonPressed('Opening', 'Close', 'Gate Open');
+      } else if(butName == 'Close') {
+        buttonPressed('Closing', 'Open', 'Gate Closed');
+      } else if(butName == 'Partial Open') {
+        console.log('pOpen pressed');
+        $('#gateButton').attr('disabled', true);    // disable button
+        $('#stopButton').attr('disabled', false);  // enable stop button
+        next = 0;
+        pOpenNext('Opening', 'Gate Opening', 'red');
+      }
+
       //$.post('', { $(this).val } );
     });
 
-
+    // updates the range value each time slider moves
     function updateValue(event) {
       const name = $(event).attr("name");
       const value = $(event).val();
@@ -112,16 +221,13 @@
       }
     }
 
-
+    // updates the range slider and posts value when mouse lifted and posts value
     $('.times').on('input change', function(event, ui) {
       updateValue($(this));
-      //console.log('slider input is: ' + event.type);
       if(event.type == 'change') {
         console.log('slider post message');
         //$.post('', { name: value});    // only post when the mouse is lifted
       }
     });
-
-
   </script>
 </html>
