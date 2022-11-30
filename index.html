@@ -90,59 +90,42 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
   </body>
   <script type="text/javascript">
-
-  // global variables
-    var stopped = false;    // has stop been pressed
-    var next = 0;
+    // global variables
+    var next = 0;      // used by pOpen case statement thread
+    var timerID = 0;   // to hold timer ID
     const gateBusyStatus = ['Gate Opening', 'Gate Closing', 'Gate Remaining Open'];
 
-    // this needs to be performed when stop button detected
+    // stop button pressed, indicate gate open state
     function stopButtonPressed() {
-      stopped = false;      // disable stopped
-      $('#gateStatus').val('Gate Opened');  // gate still opened
-
-      $('#gateButton').val('Close');        // set open/close button to Closed
+      $('#gateStatus').val('Gate Opened');
+      $('#gateButton').val('Close');
       $('#gateButton').css('background-color', 'green');
-      $('#gateButton').attr('disabled', false);    // disable button
-
-      $('#pOpenButton').val('Partial Open');    // reset pOpen Button
+      $('#gateButton').attr('disabled', false);
+      $('#pOpenButton').val('Partial Open');
       $('#pOpenButton').css("background-color", 'green');
-      $('#pOpenButton').attr('disabled', true);    // disable button
-
-      $('#stopButton').attr('disabled', true);    // disable button
-
-      //console.log('Stop pressed, #gateStatus: ' + $('#gateStatus').val());
+      $('#pOpenButton').attr('disabled', true);
+      $('#stopButton').attr('disabled', true);
     }
-
-    // pOpen calls this function when finished to kick off the next step
+    // pOpenNext - pOpen calls to kick off next step
     function pOpenNext(state, status, color) {
-      if(stopped) {
-        stopButtonPressed();
-      } else {
-        switch(next) {
-          case 0:
-            pOpen('Opening', 'Gate Opening', 'red');  //
-            break;
-          case 1:
-            //console.log('case 1 ');
-            setTimeout(function() { pOpen('Remaining Open', 'Gate Remaining Open', 'red'); }, $('#pOpen').val() + '000');
-            break;
-          case 2:
-            //console.log('case 2 ');
-            setTimeout(function() { pOpen('Closing', 'Gate Closing', 'red'); }, $('#rOpen').val() + '000');
-            break;
-          case 3:
-            //console.log('case 3 ');
-            setTimeout(function() { pOpen('Partial Open', 'Gate Closed', 'green'); }, $('#pOpen').val() + '000');
-            break;
-          default:
-            //$('#gateButton').disabled = false; // re-enable the open/close button while in use
-            $('#gateButton').attr('disabled', false);    // disable button
-            //console.log('default case');
-        }
+      switch(next) {
+        case 0:
+          pOpen('Opening', 'Gate Opening', 'red');  //
+          break;
+        case 1:
+          timerID = setTimeout(function() { pOpen('Remaining Open', 'Gate Remaining Open', 'red'); }, $('#pOpen').val() + '000');
+          break;
+        case 2:
+          timerID = setTimeout(function() { pOpen('Closing', 'Gate Closing', 'red'); }, $('#rOpen').val() + '000');
+          break;
+        case 3:
+          timerID = setTimeout(function() { pOpen('Partial Open', 'Gate Closed', 'green'); }, $('#pOpen').val() + '000');
+          break;
+        default:
+          $('#gateButton').attr('disabled', false);
       }
     }
-    // pOpen is the timer callback function and sets buttons for partial open/close function
+    // pOpen - is the timer callback function, sets buttons for pOpen stages
     function pOpen(state, status, color) {
       $('#pOpenButton').val(state);
       $('#pOpenButton').css("background-color", color);
@@ -151,58 +134,44 @@
       pOpenNext(state, status, color);
     }
 
-    // this is the generic open/close timer callback function
+    // gateOpenClose - open/close timer callback function
     function gateOpenClose(state, status) {
-      $('#gateButton').attr('disabled', false);    // disable button
+      $('#gateButton').attr('disabled', false);
       if(status == 'Gate Closed') {
-        $('#pOpenButton').attr('disabled', false);    // disable button
+        $('#pOpenButton').attr('disabled', false);
       }
       $('#gateButton').css("background-color", "green");
-      if(stopped) {
-        stopButtonPressed();
-      } else {
-        $('#gateStatus').val(status);
-        $('#gateButton').val(state);
-      }
-      $('#stopButton').attr('disabled', true);    // disable button
+      $('#gateStatus').val(status);
+      $('#gateButton').val(state);
+      $('#stopButton').attr('disabled', true);
     }
 
-    // top level function for open/close buttons
+    // buttonPressed - top level function for openClose buttons
     function buttonPressed(state, nextState, status) {
       $('#gateButton').attr('disabled', true);
       $('#pOpenButton').attr('disabled', true);
       $('#stopButton').attr('disabled', false);
-
-      $("#gateStatus").val('Gate ' + state);  // update status label
-      $('#gateButton').val(state);      // update open/close button label
-      $('#gateButton').css("background-color", "red");  // turn button red
-
-      setTimeout(function() { gateOpenClose(nextState, status); }, $('#openClose').val() + '000');
+      $("#gateStatus").val(status);
+      $('#gateButton').val(state);
+      $('#gateButton').css("background-color", "red");
+      timerID = setTimeout(function() { gateOpenClose(nextState, status); }, $('#openClose').val() + '000');
     }
 
     // event for the stop, open/close and pOpen buttons *** Starts here
     $(':button').bind('click', function(event, ui) {
-      var butName = $(this).val();  // get the button name (Open, Close, Stop, pOpen)
+      var butName = $(this).val();  // get button name (Open, Close, Stop, pOpen)
       var gateStatus = $("#gateStatus").val();  // get button status
-
-      // console.log('button click: ' + butName);
-      // console.log('#gateStatus: ' + gateStatus);
-
-      // need to check for 'Stop' first thing
       if(butName == 'Stop') {
-        if(gateBusyStatus.includes(gateStatus)) {
-          stopped = true;  // set 'stopped' to catch any call backs in progress
-        } else {
-          stopButtonPressed();  // can immediately stop
-        }
+        clearTimeout(timerID);  // stop timer
+        stopButtonPressed();
       } else if(butName == 'Open') {
         buttonPressed('Opening', 'Close', 'Gate Open');
       } else if(butName == 'Close') {
         buttonPressed('Closing', 'Open', 'Gate Closed');
       } else if(butName == 'Partial Open') {
         console.log('pOpen pressed');
-        $('#gateButton').attr('disabled', true);    // disable button
-        $('#stopButton').attr('disabled', false);  // enable stop button
+        $('#gateButton').attr('disabled', true);
+        $('#stopButton').attr('disabled', false);
         next = 0;
         pOpenNext('Opening', 'Gate Opening', 'red');
       }
